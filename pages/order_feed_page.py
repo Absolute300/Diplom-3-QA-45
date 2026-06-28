@@ -1,88 +1,63 @@
 import allure
-from .base_page import BasePage
+from selenium.common.exceptions import TimeoutException
+
+from helpers import normalize_order_number, parse_int
 from locators.order_feed_locators import OrderFeedLocators
+from pages.base_page import BasePage
+from urls import ORDER_FEED_URL
 
 
 class OrderFeedPage(BasePage):
-    
-    def __init__(self, driver):
-        super().__init__(driver)
-        self.url = "/feed"
-    
-    @allure.step("Открыть страницу ленты заказов")
+    @allure.step("Open order feed")
     def open_order_feed(self):
-        self.open(self.url)
-    
-    @allure.step("Получить счетчик 'Выполнено за всё время'")
+        self.open(ORDER_FEED_URL)
+        self.wait_feed_loaded_with_retry()
+
+    @allure.step("Wait for order feed content")
+    def wait_feed_loaded_with_retry(self):
+        for attempt in range(2):
+            try:
+                self.wait_visible(OrderFeedLocators.ORDER_FEED_ROOT, timeout=90)
+                self.wait_visible(OrderFeedLocators.ORDERS_DATA, timeout=90)
+                self.wait_visible(OrderFeedLocators.TOTAL_COUNTER, timeout=90)
+                return
+            except TimeoutException:
+                if attempt == 1:
+                    raise
+                self.driver.refresh()
+
+    @allure.step("Get total orders count")
     def get_total_orders_count(self):
-        count_text = self.get_element_text(OrderFeedLocators.TOTAL_ORDERS_COUNT)
-        return int(count_text)
-    
-    @allure.step("Получить счетчик 'Выполнено за сегодня'")
+        return parse_int(self.get_text(OrderFeedLocators.TOTAL_COUNTER))
+
+    @allure.step("Get today orders count")
     def get_today_orders_count(self):
-        count_text = self.get_element_text(OrderFeedLocators.TODAY_ORDERS_COUNT)
-        return int(count_text)
-    
-    @allure.step("Проверить есть ли заказы в работе")
-    def has_orders_in_progress(self):
-        elements = self.find_elements(OrderFeedLocators.ORDER_NUMBERS_IN_PROGRESS)
-        if not elements:
-            return False
+        return parse_int(self.get_text(OrderFeedLocators.TODAY_COUNTER))
 
-        text = elements[0].text.strip()
-
-        if "Все текущие заказы готовы" in text:
-            return False
-
-        return text.isdigit()
-    
-    @allure.step("Получить количество заказов в работе")
-    def get_orders_in_progress_count(self):
-        if not self.has_orders_in_progress():
-            return 0
-        
-        elements = self.find_elements(OrderFeedLocators.ORDER_NUMBERS_IN_PROGRESS)
-        count = 0
-        for element in elements:
-            if element.text.strip().isdigit():
-                count += 1
-        return count
-    
-    @allure.step("Получить номера заказов в работе")
-    def get_orders_in_progress_numbers(self):
-        if not self.has_orders_in_progress():
-            return []
-        
-        elements = self.find_elements(OrderFeedLocators.ORDER_NUMBERS_IN_PROGRESS)
+    @allure.step("Get orders in progress")
+    def get_orders_in_progress(self):
         orders = []
-        for element in elements:
-            text = element.text.strip()
-            if text.isdigit():
-                orders.append(text)
+        for order in self.find_elements(OrderFeedLocators.IN_PROGRESS_ORDERS):
+            text = order.text.strip()
+            if any(char.isdigit() for char in text):
+                orders.append(normalize_order_number(text))
         return orders
-    
-    @allure.step("Проверить что раздел 'В работе' отображается")
-    def is_orders_in_progress_visible(self):
-        return self.is_element_visible(OrderFeedLocators.ORDERS_IN_PROGRESS_SECTION)
-    
-    @allure.step("Дождаться обновления счетчиков")
-    def wait_for_counters_update(self, previous_total_count, timeout=30):
-        """Ожидает пока счетчики обновятся"""
-        condition = lambda driver: self.get_total_orders_count() > previous_total_count
-        return self.wait_for_condition(condition, timeout, "обновления счетчиков")
-    
-    @allure.step("Дождаться видимости счетчика 'Выполнено за всё время'")
-    def wait_for_total_counter_visible(self, timeout=10):
-        self.wait_for_element_visible(OrderFeedLocators.TOTAL_ORDERS_COUNT, timeout)
-    
-    @allure.step("Дождаться видимости счетчика 'Выполнено за сегодня'")
-    def wait_for_today_counter_visible(self, timeout=10):
-        self.wait_for_element_visible(OrderFeedLocators.TODAY_ORDERS_COUNT, timeout)
-    
-    @allure.step("Дождаться видимости раздела 'В работе'")
-    def wait_for_in_progress_section_visible(self, timeout=10):
-        self.wait_for_element_visible((OrderFeedLocators.ORDERS_IN_PROGRESS_SECTION), timeout)
-    
-    @allure.step("Получить текст элемента 'В работе:'")
-    def get_in_progress_section_text(self):
-        return self.get_element_text(OrderFeedLocators.ORDERS_IN_PROGRESS_SECTION)
+
+    @allure.step("Check order number is in progress")
+    def is_order_number_in_progress(self, order_number):
+        return normalize_order_number(order_number) in self.get_orders_in_progress()
+
+    @allure.step("Wait total orders counter increased")
+    def wait_total_counter_increased(self, old_value):
+        return self.wait_until(lambda _: self.get_total_orders_count() > old_value, 90)
+
+    @allure.step("Wait today orders counter increased")
+    def wait_today_counter_increased(self, old_value):
+        return self.wait_until(lambda _: self.get_today_orders_count() > old_value, 90)
+
+    @allure.step("Wait order appears in progress")
+    def wait_order_in_progress(self, order_number):
+        return self.wait_until(
+            lambda _: self.is_order_number_in_progress(order_number),
+            timeout=90,
+        )

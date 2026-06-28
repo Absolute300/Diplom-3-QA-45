@@ -1,14 +1,17 @@
 from selenium.webdriver.common.by import By
 
+
 class OrderFeedLocators:
-    """Локаторы для страницы ленты заказов"""
-    
-    TOTAL_ORDERS_COUNT = (By.XPATH, "//p[contains(@class, 'digits-large')]")
-    TODAY_ORDERS_COUNT = (By.XPATH, "//p[contains(text(), 'Выполнено за сегодня:')]/following-sibling::p")
-
-    ORDERS_IN_PROGRESS_SECTION = (By.XPATH, "//p[contains(text(), 'В работе:')]/..")
-    ORDER_NUMBERS_IN_PROGRESS = (By.XPATH, "//p[contains(text(), 'В работе:')]/../ul/li")
-
-    ORDERS_READY_SECTION = (By.CSS_SELECTOR, ".OrderFeed_orderListReady__lYFem")
-    ORDER_NUMBERS_READY = (By.XPATH, "//p[contains(text(), 'Готовы:')]/../ul/li")
-    ORDER_NUMBERS_IN_PROGRESS = (By.XPATH, "//p[contains(text(), 'В работе:')]/following-sibling::ul/li")
+    ORDER_FEED_ROOT = (By.CSS_SELECTOR, "div[class*='OrderFeed_orderFeed']")
+    ORDER_FEED_TITLE = (By.XPATH, "//h1[normalize-space()='Лента заказов']")
+    ORDER_CARDS = (By.CSS_SELECTOR, "ul[class*='OrderFeed_list'] li[class*='OrderHistory_listItem']")
+    ORDERS_DATA = (By.CSS_SELECTOR, "div[class*='OrderFeed_ordersData']")
+    TOTAL_COUNTER = (
+        By.XPATH,
+        "//p[normalize-space()='Выполнено за все время:']/following-sibling::p[contains(@class,'OrderFeed_number')]",
+    )
+    TODAY_COUNTER = (
+        By.XPATH,
+        "//p[normalize-space()='Выполнено за сегодня:']/following-sibling::p[contains(@class,'OrderFeed_number')]",
+    )
+    IN_PROGRESS_ORDERS = (By.CSS_SELECTOR, "ul[class*='OrderFeed_orderListReady'] li")

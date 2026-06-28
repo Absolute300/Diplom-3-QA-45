@@ -1,6 +1,4 @@
 ﻿pytest
 selenium
 allure-pytest
-pytest-html
-pytest-cov
-webdriver-manager
+requests
