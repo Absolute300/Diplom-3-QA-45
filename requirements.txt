@@ -1,4 +1,6 @@
-﻿pytest
-selenium
+﻿
+pytest>=8.0,<9.0
+selenium>=4.15
+faker>=20.0
 allure-pytest
 requests
