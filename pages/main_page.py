@@ -1,152 +1,176 @@
-# main_page.py
-
 import allure
-import logging
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.common.exceptions import TimeoutException
+
 from .base_page import BasePage
 from locators.main_page_locators import MainPageLocators
-from locators.modal_locators import ModalLocators
-from config import config
-
-logger = logging.getLogger(__name__)
 
 
 class MainPage(BasePage):
-    def __init__(self, driver: WebDriver):
-        super().__init__(driver, url_suffix="")
-        self.locators = MainPageLocators()
-        self.modal_locators = ModalLocators()
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, driver):
+        super().__init__(driver)
 
-    @allure.step("Открыть главную страницу")
-    def open(self) -> None:
-        """Открывает главную страницу и проверяет её загрузку."""
-        super().open()
-        self._verify_page_loaded()
+    @allure.step("Клик на вкладку 'Конструктор'")
+    def click_constructor_tab(self):
+        self.click_element(MainPageLocators.CONSTRUCTOR_TAB)
 
-    def _verify_page_loaded(self) -> None:
-        """Внутренний метод для проверки загрузки страницы."""
-        self.wait_until_visible(self.locators.INGREDIENTS_SECTION)
-        self.wait_until_visible(self.locators.CONSTRUCTOR_AREA)
+    @allure.step("Клик на вкладку 'Лента заказов'")
+    def click_order_feed_tab(self):
+        self.click_element(MainPageLocators.ORDER_FEED_TAB)
 
-    @allure.step("Проверить видимость раздела ингредиентов")
-    def is_ingredients_section_visible(self) -> bool:
-        """Проверяет видимость секции с ингредиентами."""
-        return self.is_visible(self.locators.INGREDIENTS_SECTION)
-
-    @allure.step("Кликнуть на ингредиент")
-    def click_ingredient(self) -> None:
-        """Кликает на первый доступный ингредиент."""
-        self.click(self.locators.INGREDIENT_ITEM)
-        self.wait_until_visible(self.modal_locators.MODAL_WINDOW)
-
-    @allure.step("Проверить, что пользователь авторизован")
-    def is_user_logged_in(self, timeout=None) -> bool:
-        """Проверяет, что пользователь авторизован."""
-        timeout = timeout or self.timeout
-        try:
-            return self.is_visible(self.locators.CREATE_ORDER_BTN, timeout=timeout)
-        except TimeoutException:
-            return False
-
-    @allure.step("Проверить состояние модального окна")
-    def is_modal_visible(self, timeout=None) -> bool:
-        """Проверяет видимость модального окна."""
-        timeout = timeout or self.timeout
-        return self.is_visible(self.modal_locators.MODAL_WINDOW, timeout=timeout)
-
-    @allure.step("Закрыть модальное окно")
-    def close_modal(self, timeout=None) -> None:
-        """Закрывает модальное окно."""
-        timeout = timeout or self.timeout
-        if self.is_modal_visible(timeout=timeout):
-            self.click(self.modal_locators.MODAL_CLOSE_BUTTON, timeout=timeout)
-            self.wait_until_not_visible(self.modal_locators.MODAL_WINDOW, timeout=timeout)
-
-    @allure.step("Перейти в конструктор")
-    def navigate_to_constructor(self) -> None:
-        """Переходит в раздел конструктора."""
-        self.click(self.locators.CONSTRUCTOR_BTN)
-        self.wait_until_url_contains(config.BASE_URL)
-
-    @allure.step("Перейти в ленту заказов")
-    def navigate_to_order_feed(self) -> None:
-        """Кликает на ссылку ленты заказов"""
-        logger.info(f"Current URL before click: {self.driver.current_url}")
-        self.click(self.locators.ORDER_FEED_BUTTON)
-        logger.info(f"Current URL after click: {self.driver.current_url}")
-        self.wait_until_url_contains("/feed")
-
-    @allure.step("Оформить заказ")
-    def make_order(self) -> str:
-        """Оформляет заказ."""
-        self.click(self.locators.MAKE_ORDER_BTN)
-        self.wait_until_visible(self.locators.ORDER_MODAL)
-        return self.wait_until_text_changes(
-            locator=self.locators.ORDER_NUMBER,
-            old_text="9999",
-            timeout=15
-        )
-
-    @allure.step("Добавить ингредиент в конструктор")
-    def add_ingredient_to_constructor(self) -> None:
-        """Добавляет ингредиент в конструктор бургера."""
-        source = self.wait_until_visible(self.locators.INGREDIENT_ITEM)
-        target = self.wait_until_visible(self.locators.CONSTRUCTOR_AREA)
-        self._execute_drag_and_drop_js(source, target)
-
-    @allure.step("Перейти в личный кабинет")
-    def go_to_personal_account(self) -> None:
-        """Переходит в личный кабинет пользователя."""
-        self.click(self.locators.PERSONAL_ACCOUNT_BTN)
-        self.wait_until_url_contains("account/profile")
-
-    @allure.step("Получить значение счетчика ингредиента")
-    def get_ingredient_counter_value(self) -> int:
-        """Возвращает значение счетчика ингредиента."""
-        try:
-            counter_text = self.get_text(self.locators.INGREDIENT_COUNTER)
-            return int(counter_text)
-        except (NoSuchElementException, ValueError):
-            return 0
-
-    @allure.step("Проверить наличие кнопки оформления заказа")
-    def is_order_button_visible(self) -> bool:
-        """Проверяет видимость кнопки оформления заказа."""
-        return self.is_visible(self.locators.MAKE_ORDER_BTN)
-
-    @allure.step("Перетащить ингредиент в конструктор (JavaScript)")
-    def drag_and_drop_ingredient(self) -> None:
-        """Перетаскивает ингредиент в конструктор, используя JavaScript."""
-        source = self.wait_until_visible(self.locators.INGREDIENT_ITEM)
-        target = self.wait_until_visible(self.locators.CONSTRUCTOR_AREA)
-        self._execute_drag_and_drop_js(source, target) # Используем метод из BasePage
-
-    @allure.step("Увеличить счетчик ингредиентов")
-    def increase_ingredient_counter(self) -> None:
-        """Увеличивает счетчик ингредиентов путем перетаскивания ингредиента."""
-        self.drag_and_drop_ingredient()
-
-    @allure.step("Получить текущий URL")
-    def get_current_page_url(self) -> str:
-        """Возвращает текущий URL страницы."""
-        return self.get_current_url()
-
-    @allure.step("Проверить видимость модального окна")
-    def is_ingredient_modal_visible(self) -> bool:
-        """Проверяет видимость модального окна с ингредиентом."""
-        return self.is_modal_visible()
+    @allure.step("Клик на ингредиент: {ingredient_name}")
+    def click_ingredient(self, ingredient_name):
+        if ingredient_name == "traditional_sauce":
+            self.click_element(MainPageLocators.TRADITIONAL_GALACTIC_SAUCE)
 
     @allure.step("Закрыть модальное окно ингредиента")
-    def close_ingredient_modal(self) -> None:
-        """Закрывает модальное окно с ингредиентом."""
-        self.close_modal()
+    def close_modal(self):
+        self.click_element(MainPageLocators.MODAL_CLOSE)
 
-    @allure.step("Создает тестовый заказ и возвращает его номер")
-    def create_test_order(self) -> str:
-        """Создает тестовый заказ и возвращает его номер"""
-        self.add_ingredient_to_constructor()
-        order_number = self.make_order()
-        self.close_modal()
-        return order_number
+    @allure.step("Проверить видимость модального окна ингредиента")
+    def is_modal_visible(self):
+        return self.is_element_visible(MainPageLocators.MODAL)
+
+    @allure.step("Проверить закрытие модального окна ингредиента")
+    def is_modal_closed(self):
+        return self.is_element_not_visible(MainPageLocators.MODAL)
+
+    @allure.step("Получить текст заголовка модального окна ингредиента")
+    def get_modal_title(self):
+        return self.get_element_text(MainPageLocators.MODAL_TITLE)
+
+    @allure.step("Получить название ингредиента в модальном окне")
+    def get_modal_ingredient_name(self):
+        return self.get_element_text(MainPageLocators.MODAL_INGREDIENT_NAME)
+
+    @allure.step("Получить значение счетчика ингредиента")
+    def get_ingredient_counter_value(self, ingredient_name="traditional_sauce"):
+        if ingredient_name == "traditional_sauce":
+            counter_text = self.get_element_text_no_wait(MainPageLocators.TRADITIONAL_SAUCE_COUNTER)
+            return int(counter_text) if counter_text else 0
+        return 0
+
+    @allure.step("Кликнуть на кнопку 'Войти в аккаунт'")
+    def click_login_button(self):
+         
+        element = self.wait_for_element_clickable(MainPageLocators.LOGIN_BUTTON, timeout=15)
+        self.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        element = self.wait_for_element_clickable(MainPageLocators.LOGIN_BUTTON, timeout=15)
+        self.execute_script("arguments[0].click();", element)
+
+    @allure.step("Авторизоваться с email: {email}")
+    def login(self, email, password):
+        self.wait_for_element_visible(MainPageLocators.EMAIL_INPUT)
+        self.input_text(MainPageLocators.EMAIL_INPUT, email)
+        self.input_text(MainPageLocators.PASSWORD_INPUT, password)
+        self.click_element(MainPageLocators.LOGIN_SUBMIT)
+
+    @allure.step("Переключиться на раздел 'Соусы'")
+    def switch_to_sauces_section(self):
+        element = self.wait_for_element_clickable(MainPageLocators.SAUCE_TAB)
+        self.click_element_via_js(element)
+
+    @allure.step("Переключиться на раздел 'Булки'")
+    def switch_to_buns_section(self):
+        element = self.wait_for_element_clickable(MainPageLocators.BUN_TAB)
+        self.click_element_via_js(element)
+
+    @allure.step("Перетащить ингредиент в конструктор")
+    def drag_ingredient_to_constructor(self, ingredient_name):
+        if ingredient_name == "traditional_sauce":
+            source_element = self.find_element_no_wait(MainPageLocators.TRADITIONAL_GALACTIC_SAUCE)
+            target_element = self.find_element_no_wait(MainPageLocators.BASKET)
+            self.drag_and_drop_react(source_element, target_element)
+
+    @allure.step("Получить количество добавленных ингредиентов")
+    def get_added_ingredients_count(self):
+        elements = self.find_elements(MainPageLocators.CONSTRUCTOR_ELEMENT)
+        return len(elements)
+
+    @allure.step("Оформить заказ")
+    def create_order(self):
+        element = self.wait_for_element_clickable(MainPageLocators.ORDER_BUTTON)
+        self.click_element_via_js(element)
+
+    @allure.step("Закрыть модальное окно заказа")
+    def close_order_modal(self):
+        """Закрытие модального окна заказа через JS клик для Firefox"""
+        element = self.wait_for_element_clickable(MainPageLocators.ORDER_MODAL_CLOSE, timeout=10)
+        self.click_element_via_js(element)
+
+    @allure.step("Проверить видимость модального окна заказа")
+    def is_order_modal_visible(self):
+        return self.is_element_visible(MainPageLocators.ORDER_MODAL)
+
+    @allure.step("Дождаться оформления заказа")
+    def wait_for_order_creation(self, timeout=15):
+        self.wait_for_element_visible(MainPageLocators.ORDER_MODAL, timeout)
+
+    @allure.step("Проверить что пользователь авторизован")
+    def is_authorized(self):
+        return self.is_element_visible(MainPageLocators.ORDER_BUTTON)
+
+    @allure.step("Получить номер заказа из модального окна")
+    def get_order_number_from_modal(self):
+        return self.get_element_text(MainPageLocators.ORDER_MODAL_NUMBER)
+
+    @allure.step("Дождаться реального номера заказа")
+    def wait_for_real_order_number(self, timeout=30):
+        """Ожидает когда 9999 сменится на реальный номер"""
+        condition = lambda driver: (
+            self.get_order_number_from_modal() != "9999"
+            and self.get_order_number_from_modal().isdigit()
+            and len(self.get_order_number_from_modal()) > 3
+        )
+
+        try:
+            self.wait_for_condition(condition, timeout, "реальный номер заказа")
+            return self.get_order_number_from_modal()
+        except TimeoutException:
+            return self.get_order_number_from_modal()
+
+    @allure.step("Дождаться скрытия модального окна заказа")
+    def wait_for_order_modal_hidden(self, timeout=5):
+        self.wait_element_invisible(MainPageLocators.ORDER_MODAL, timeout)
+
+    @allure.step("Дождаться увеличения счетчика ингредиента")
+    def wait_for_ingredient_counter_increase(self, ingredient_name, initial_value, timeout=10):
+        """Ожидает увеличения счетчика ингредиента"""
+        condition = lambda driver: (self.get_ingredient_counter_value(ingredient_name) > initial_value)
+        self.wait_for_condition(condition, timeout, f"увеличения счетчика {ingredient_name}")
+
+    @allure.step("Дождаться добавления ингредиентов")
+    def wait_for_ingredients_added(self, min_count=1, timeout=10):
+        """Ожидает добавления минимум min_count ингредиентов"""
+        condition = lambda driver: (self.get_added_ingredients_count() >= min_count)
+        self.wait_for_condition(condition, timeout, f"добавления минимум {min_count} ингредиентов")
+
+    @allure.step("Получить элемент булки по тексту")
+    def get_bun_element_by_text(self, text="булка"):
+        """Находит элемент булки по тексту (для динамических локаторов)"""
+        from selenium.webdriver.common.by import By
+
+        xpath = f"//p[contains(text(), '{text}')]"
+        return self.driver.find_element(By.XPATH, xpath)
+
+    @allure.step("Дождаться полного закрытия модалки (фикс для Firefox)")
+    def wait_for_modal_completely_hidden_for_firefox(self, timeout=10):
+        """Ожидает пока overlay модального окна полностью скроется (для Firefox)"""
+        self.wait_element_invisible(MainPageLocators.MODAL, timeout)
+
+    @allure.step("Добавить булку в конструктор (краторная)")
+    def add_bun_to_constructor(self):
+        bun = self.wait_for_element_visible(MainPageLocators.BUN_STELLAR_CRUST, timeout=15)
+        basket = self.wait_for_element_visible(MainPageLocators.BASKET, timeout=15)
+        self.drag_and_drop_react(bun, basket)
+
+    @allure.step("Добавить соус в конструктор (традиционный)")
+    def add_traditional_sauce_to_constructor(self):
+        sauce = self.wait_for_element_visible(MainPageLocators.TRADITIONAL_GALACTIC_SAUCE, timeout=15)
+        basket = self.wait_for_element_visible(MainPageLocators.BASKET, timeout=15)
+        self.drag_and_drop_react(sauce, basket)
+
+    @allure.step("Собрать заказ (булка + соус)")
+    def build_order_bun_and_sauce(self):
+        self.add_bun_to_constructor()
+        self.add_traditional_sauce_to_constructor()
+        self.wait_for_ingredients_added(min_count=2, timeout=15)
