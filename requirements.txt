@@ -1,0 +1,8 @@
+selenium==4.15.1
+pytest==7.0.1
+allure-pytest==2.9.45
+requests==2.32.0
+webdriver-manager==3.8.5
+undetected-chromedriver~=3.5.5
+allure-python-commons~=2.9.45
+uc~=2.2.1
